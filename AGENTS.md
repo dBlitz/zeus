@@ -204,3 +204,220 @@
 - For manual `openclaw message send` messages that include `!`, use the heredoc pattern noted below to avoid the Bash tool’s escaping.
 - Release guardrails: do not change version numbers without operator’s explicit consent; always ask permission before running any npm publish/release step.
 - Beta release guardrail: when using a beta Git tag (for example `vYYYY.M.D-beta.N`), publish npm with a matching beta version suffix (for example `YYYY.M.D-beta.N`) rather than a plain version on `--tag beta`; otherwise the plain version name gets consumed/blocked.
+
+## Production Server (Nawkout / dBlitz)
+
+**Droplet:** `167.71.93.186` SSH port `2222`, path `/root/projects/zeus` (dBlitz/zeus fork).
+
+### Access
+
+```bash
+ssh -p 2222 root@167.71.93.186
+```
+
+### OpenClaw Gateway
+
+- **Systemd service:** `openclaw-gateway` on port `18789` (loopback)
+- **Version:** v2026.3.14
+- **Tailscale node:** `crm` (IP `100.124.75.80`, MagicDNS `crm.taile47c3.ts.net`)
+- **Control UI:** `https://crm.taile47c3.ts.net/dashboard/` (Funnel, token auth, device auth disabled)
+- **Gateway auth token:** stored in `gateway.auth.token` in `/root/.openclaw/openclaw.json`
+
+```bash
+systemctl --user status openclaw-gateway
+systemctl --user restart openclaw-gateway
+journalctl --user -u openclaw-gateway -f
+tail -f /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log
+```
+
+### Agents
+
+| Agent                 | Model                       | Role                                                                           |
+| --------------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| **creator** (default) | anthropic/claude-sonnet-4-6 | Creator partnerships (Maya persona, maya@getnawkout.com + partner@nawkout.com) |
+| **customer**          | openai/gpt-5-mini           | Customer lifecycle (Maya persona, care@nawkout.com)                            |
+| **diagnostic**        | openai/gpt-5-mini           | Sleep diagnostic leads (Dr. Elena, elena@nawkout.com)                          |
+
+Agent workspaces: `~/.openclaw/agents/<agentId>/workspace/` (SOUL.md, IDENTITY.md, HEARTBEAT.md, MEMORY.md, TOOLS.md)
+
+### Channels
+
+- **Gmail:** Push via Google Pub/Sub + Tailscale Funnel + gog CLI. Two mailboxes: `maya@getnawkout.com` (port 8788) and `partner@nawkout.com` (port 8789).
+- **WhatsApp:** Enabled via Baileys (WhatsApp Web protocol). Linked device with dedicated number. DM policy: `pairing`. Allowlisted numbers: `+18324832725`, `+13464013096`. Credentials at `~/.openclaw/credentials/whatsapp/`.
+
+### Tailscale Routes
+
+| Path                    | Target                                        | Mode                             |
+| ----------------------- | --------------------------------------------- | -------------------------------- |
+| `/`                     | `http://127.0.0.1:8788` (Gmail watcher)       | Funnel (public)                  |
+| `/dashboard`            | `http://127.0.0.1:18789` (Gateway/Control UI) | Funnel (public, token-protected) |
+| `/gmail-pubsub`         | `http://127.0.0.1:8788`                       | Funnel (public)                  |
+| `/gmail-pubsub-partner` | `http://127.0.0.1:8789`                       | Funnel (public)                  |
+
+### Agent CLI Tools (via exec)
+
+| Service | CLI             | Auth env var                                        |
+| ------- | --------------- | --------------------------------------------------- |
+| Gmail   | `gog`           | `GOG_KEYRING_PASSWORD`                              |
+| Shopify | `shopify-admin` | `SHOPIFY_KEYRING_PASSWORD`                          |
+| HubSpot | `hubspot`       | `HUBSPOT_KEYRING_PASSWORD` + `HUBSPOT_ACCESS_TOKEN` |
+
+Auth env vars stored in `~/.openclaw/.env`.
+
+### Backup
+
+```bash
+cd /root && openclaw backup create
+```
+
+Creates timestamped `.tar.gz` of `~/.openclaw/` (config, credentials, sessions, agent workspaces). Contains secrets in cleartext; encrypt before offsite storage.
+
+### Memory and Context Retention
+
+OpenClaw's golden rule: **if it's not written to a file, it doesn't exist.** The model only "remembers" what gets written to disk. Instructions typed in conversation don't survive compaction.
+
+**Current config (applied 2026-03-21):**
+
+```json5
+{
+  agents: {
+    defaults: {
+      compaction: {
+        reserveTokensFloor: 20000,
+        memoryFlush: {
+          enabled: true,
+          softThresholdTokens: 8000,
+          systemPrompt: "Extract only what is worth remembering. No fluff.",
+          prompt: "Session nearing compaction. If the daily memory file already exists, READ it first and APPEND new entries. Save to memory/daily/YYYY-MM-DD.md: who was discussed, what actions were taken, decisions made, and pending tasks. Reply NO_FLUSH if nothing worth storing.",
+        },
+      },
+    },
+  },
+  channels: {
+    whatsapp: {
+      dmHistoryLimit: 20, // injects last 20 DM messages as context on each turn
+    },
+  },
+}
+```
+
+**How compaction flush works:**
+
+- Triggers when session tokens cross `contextWindow - reserveTokensFloor - softThresholdTokens`
+- Fires a silent agentic turn telling the model to save important context to disk
+- Default `softThresholdTokens` (4000) was too small; 8000 gives enough headroom for multi-file writes
+- The custom prompt includes an **append instruction** to prevent overwriting previous daily memory entries (known bug with default prompt)
+
+**WhatsApp DM history injection:**
+
+- `dmHistoryLimit: 20` injects recent unprocessed messages under `[Chat messages since your last reply - for context]`
+- Default for groups is 50; DMs were unset (no injection)
+- Helps Maya retain conversation context across turns even without persistent memory
+
+### Memory Plugins (Persistent / Vector-Based)
+
+**Built-in options (ship with OpenClaw):**
+
+| Plugin           | Status       | What it does                                                                                                                                          |
+| ---------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `memory-core`    | **loaded**   | File-based memory with `memory_search` and `memory_get` tools. Simple, transparent, works.                                                            |
+| `memory-lancedb` | **disabled** | LanceDB vector DB with auto-recall (injects relevant memories before each response) and auto-capture (saves after each turn). Uses OpenAI embeddings. |
+
+**Third-party options:**
+
+| Plugin                           | Type                 | Notes                                                                                                                       |
+| -------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `mem0` (@mem0/openclaw-mem0)     | Cloud or self-hosted | Auto-recall/capture, supports OpenAI-compatible providers. Requires Mem0 account or self-hosted instance.                   |
+| `supermemory`                    | Cloud                | No local infra needed. Auto-recall/capture with user profiles. Requires Supermemory account.                                |
+| `memory-lancedb-pro` (community) | Local                | Enhanced version with hybrid retrieval (vector + BM25), cross-encoder reranking, per-agent isolation, Weibull memory decay. |
+| `openclaw-mem`                   | Local                | Trust-aware memory with provenance tracking. Scored highest in benchmarks (hit@k=0.92).                                     |
+
+**memory-lancedb known issues (as of 2026-03):**
+
+- Native dependency `@lancedb/lancedb` fails to install out of the box; requires manual `npm install` in the extension directory, and updates can wipe it
+- All agents share one database by default (memory bleed between agents); per-agent isolation requires `memory-lancedb-pro` or `{agentId}` templating
+- Opaque storage; hard to browse or correct stored memories
+- Benchmarks show `openclaw-mem` scores higher on retrieval accuracy
+
+**Recommendation:** Start with `memory-core` + compaction flush (current setup). If context loss persists, try `memory-lancedb` but be prepared to manually install native deps on the server. For production multi-agent setups, `memory-lancedb-pro` with per-agent isolation is the better choice.
+
+**Enable memory-lancedb (when ready):**
+
+```bash
+openclaw config set plugins.entries.memory-lancedb.enabled true
+systemctl --user restart openclaw-gateway
+# If module loading fails:
+cd /usr/lib/node_modules/openclaw/extensions/memory-lancedb && npm install
+```
+
+### Control UI
+
+- **URL:** `https://crm.taile47c3.ts.net/dashboard/`
+- **Auth:** Gateway token (from `gateway.auth.token` in config)
+- **Mode:** Funnel (public HTTPS, token-protected), device auth disabled
+- **Features:** Real-time reasoning view, tool calls, sessions, chat, agents, cron jobs, usage
+
+### Voice, Talk Mode, and Node Setup Status (as of 2026-03-21)
+
+**Talk Mode (ElevenLabs TTS) — server config DONE, needs macOS app to use:**
+
+```json5
+{
+  talk: {
+    provider: "elevenlabs",
+    voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel (warm female)
+    modelId: "eleven_v2",
+    silenceTimeoutMs: 1500,
+    interruptOnSpeech: true,
+  },
+}
+```
+
+- ElevenLabs API key stored in `~/.openclaw/.env` (`ELEVENLABS_API_KEY`)
+- Free tier: 20 min/month. Instant voice cloning available from Starter ($5/month).
+- Talk Mode requires a **node device** (macOS app, iOS app, or Android app) connected to the gateway — the node handles the mic loop, gateway handles model + TTS.
+
+**Voice Wake ("Hey Maya") — BLOCKED on Picovoice approval:**
+
+- Picovoice account created, awaiting trial approval email
+- Once approved: create custom wake word "Hey Maya" at console.picovoice.ai, download `.ppn` file for macOS, set `PORCUPINE_MODEL_PATH` in env
+- Uses Porcupine engine for offline wake word detection (no internet needed for detection)
+
+**macOS Companion App — BLOCKED, needs Xcode build:**
+
+- Source at `apps/macos/` (Swift/SwiftUI, requires full Xcode IDE, not just Command Line Tools)
+- Not distributed as a pre-built DMG in GitHub releases; no Homebrew cask exists
+- Required for both Talk Mode and Voice Wake on Mac
+- Build steps: Xcode install (~12GB) → `apps/macos/` → build and sign
+- The CLAUDE.md note about `scripts/package-mac-app.sh` is for distribution packaging, not initial build
+
+**iPhone as Node — BLOCKED, no public App Store release:**
+
+- Official OpenClaw iOS app is super-alpha, internal-use only
+- TestFlight beta: `https://testflight.apple.com/join/cutCZt5s` (called "Aight")
+- Third-party alternatives on App Store: GoClaw, ClawHub, OpenClaw Messenger (MyClaw)
+- Once installed: Settings → Gateway → enter `crm.taile47c3.ts.net` port `443` → approve via `openclaw nodes approve <id>` on server
+- Capabilities: camera snap/clip, screen recording, location, notifications
+
+**What's fully working now:**
+
+| Feature                  | Status                                                                     |
+| ------------------------ | -------------------------------------------------------------------------- |
+| WhatsApp channel (Maya)  | Working — linked, dmPolicy=pairing, allowFrom configured                   |
+| Control UI dashboard     | Working — `https://crm.taile47c3.ts.net/dashboard/`                        |
+| Memory/context retention | Configured — flush threshold 8000, custom append prompt, dmHistoryLimit 20 |
+| Talk Mode server config  | Done — ElevenLabs voice "Rachel" configured                                |
+| Voice Wake               | Blocked — awaiting Picovoice approval                                      |
+| macOS Companion App      | Blocked — needs full Xcode to build from source                            |
+| iPhone Node              | Blocked — TestFlight alpha or third-party apps only                        |
+
+### Related
+
+- Full marketing-sales operational docs: `../marketing-sales/CLAUDE.md`
+- WhatsApp channel docs: `docs/channels/whatsapp.md`
+- Memory docs: `docs/concepts/memory.md`
+- Session docs: `docs/concepts/session.md`
+- Voice Wake docs: `docs/nodes/voicewake.md` (see also `docs/platforms/mac/voicewake.md`)
+- Talk Mode docs: `docs/nodes/talk.md`
+- iOS app docs: `docs/platforms/ios.md` (see also `apps/ios/README.md`)
+- macOS app docs: `docs/platforms/macos.md` (see also `apps/macos/README.md`)
