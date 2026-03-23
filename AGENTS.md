@@ -673,6 +673,17 @@ OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gi
 - $0 orders / "Samples" discount = creator samples (skipped)
 - Reorder detected at any point = cancel remaining tasks, move to Activated/Won Back
 - Gmail accounts: care@nawkout.com + info@nawkout.com (both authorized)
+- Churn timeline: 0-30d normal, 31-45d medium, 46-60d high, 61-90d churned, 90+ hibernating (stop outreach)
+- Full lookup on EVERY customer interaction: Shopify + HubSpot + Gmail (both accounts) — never email without checking history
+
+**Care agent product knowledge (docs/ folder, loaded on-demand):**
+- `docs/product.md` — 6 organic ingredients, dosage, pricing, melatonin-is-BAD position, common questions
+- `docs/policies.md` — shipping (always free), returns, subscriptions, discount codes
+- Brand positions: melatonin is bad (not "different"), kids = 1 gummy (no medical disclaimers), herbs not supplements
+
+**HubSpot properties:** `review_submitted` (yes/no/pending) — only ask for review after confirmed positive feedback (T4b)
+
+**Customer backfill:** Care agent backfills all paying Shopify customers into HubSpot with full lookup (Shopify + HubSpot + Gmail history). ~80 customers, auto-categorized by churn stage.
 
 ### Backup & Disaster Recovery
 
