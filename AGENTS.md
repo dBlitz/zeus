@@ -423,7 +423,7 @@ cd /usr/lib/node_modules/openclaw/extensions/memory-lancedb && npm install
 |-------|----------|-------|-------|----------------|
 | **Chief** (default) | Personal Chief of Staff — routing, morning briefing, revenue pulse, gap detection, cross-agent coordination | gog (Gmail), hubspot, shopify-admin, sessions_spawn, sessions_send | openai/gpt-5-mini | WhatsApp DMs (default), Control UI |
 | **Maya** (creator) | Creator partnerships — outreach, relationship mgmt, CRM, resupply | gog (Gmail), hubspot, shopify-admin, meta-cli (creator ad perf only) | anthropic/claude-sonnet-4-6 | Gmail inbound, delegated from Chief |
-| **Care** (customer) | Customer lifecycle, support, reviews, retention, diagnostic leads | gog (Gmail), shopify-admin, hubspot | openai/gpt-5-mini | Email channels, delegated from Chief |
+| **Care** (customer) | Customer lifecycle, support, reviews, retention, diagnostic leads | gog (Gmail), shopify-admin, hubspot | anthropic/claude-sonnet-4-6 | Email channels, delegated from Chief |
 | **Ads** (paid media) | Paid media across ALL platforms — budgets, campaigns, creatives, performance | google-cli ads, meta-cli ads, tiktok-cli business, meta-cli capi | openai/gpt-5-mini | Delegated from Chief |
 | **Growth** (organic) | Analytics, SEO, organic social, content, shop operations | google-cli ga4, google-cli gsc, meta-cli instagram, meta-cli pages, tiktok-cli shop | openai/gpt-5-mini | Delegated from Chief |
 
@@ -628,6 +628,30 @@ OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gi
 - OpenClaw version updates: manual `sudo npm i -g openclaw@latest`
 - Credential rotation: manual
 - Firewall/network changes: never through agent
+
+### Customer CRM Data Architecture
+
+**HubSpot Customer Lifecycle pipeline:** ID `884279990` (created via `hubspot pipelines create`)
+- Stages: New Buyer → Onboarding → Activated → At Risk → Churned → Won Back
+
+**Custom HubSpot contact properties (created 2026-03-22):**
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `first_order_date` | datetime | When they became a customer |
+| `last_order_date` | datetime | Recency (RFM) |
+| `total_orders` | number | Frequency (RFM) |
+| `total_spent` | number | Monetary (RFM) |
+| `average_order_value` | number | Revenue efficiency |
+| `days_since_last_order` | number | Churn risk signal |
+| `referred_by_creator` | string | Creator attribution (from discount code) |
+| `subscription_status` | enum | active, cancelled, never |
+| `churn_risk_score` | enum | low, medium, high, churned |
+| `customer_health` | enum | great, good, okay, at_risk, churned |
+
+**Sync strategy:** Care agent enriches HubSpot from Shopify on every interaction (no formal integration needed). Chief's weekly review checks churn_risk_score distribution.
+
+**RFM segmentation:** Champions (recent+frequent+high spend) → reward/referrals. At Risk (stale+was high) → win-back ASAP. New (1 order) → onboarding flow.
 
 ### Backup & Disaster Recovery
 
