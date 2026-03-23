@@ -653,6 +653,24 @@ OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gi
 
 **RFM segmentation:** Champions (recent+frequent+high spend) → reward/referrals. At Risk (stale+was high) → win-back ASAP. New (1 order) → onboarding flow.
 
+**Post-purchase lifecycle flow (Care agent, 7 touchpoints, data-validated):**
+
+| Touch | Timing | Purpose | Discount |
+|-------|--------|---------|----------|
+| T1 | Order confirmed | Welcome, create HubSpot contact + deal + task chain | — |
+| T2 | Delivery + 1-2hr (random) | Dosage tips, set expectations (effects build 2-3 weeks) | Soft: "subscribers save 20%" |
+| T3 | Day 5 | "Settling into routine?" (not "feeling results?" — too early) | — |
+| T4 | Day 14 | Review ask + subscription offer | `FIRSTNAME20` (20% sub) |
+| T5 | Day 25 | Reorder nudge (5 days before running out) | `FIRSTNAME15` (15% one-time) |
+| T6 | Day 40 | At-risk win-back (if no reorder) | `FIRSTNAME25` (25%) |
+| T7 | Day 55 | Final gentle reach-out. Last attempt. | `FIRSTNAME30` (30% + free ship) |
+
+- Discount guardrails: all single-use, 7-day expiry, max 30%, max 2 offers per sequence
+- Care heartbeat detects new orders + due tasks automatically (no Chief delegation needed)
+- $0 orders / "Samples" discount = creator samples (skipped)
+- Reorder detected at any point = cancel remaining tasks, move to Activated/Won Back
+- Gmail accounts: care@nawkout.com + info@nawkout.com (both authorized)
+
 ### Backup & Disaster Recovery
 
 **3-2-1 rule — fully covered:**
