@@ -660,12 +660,15 @@ OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gi
 | T1 | Order confirmed | Welcome, create HubSpot contact + deal + task chain | — |
 | T2 | Delivery + 1-2hr (random) | Dosage tips, set expectations (effects build 2-3 weeks) | Soft: "subscribers save 20%" |
 | T3 | Day 5 | "Settling into routine?" (not "feeling results?" — too early) | — |
-| T4 | Day 14 | Review ask + subscription offer | `FIRSTNAME20` (20% sub) |
-| T5 | Day 25 | Reorder nudge (5 days before running out) | `FIRSTNAME15` (15% one-time) |
+| T4 | Day 14 | "How's your sleep?" (NO selling, just listen) | None |
+| T4b | After positive T4 reply ONLY | Review ask: "sharing your experience helps others" | None (favor, not sale) |
+| T5 | Day 25 | Reorder nudge, subscription offer (earned after 25 days) | Sub = 20% ongoing |
 | T6 | Day 40 | At-risk win-back (if no reorder) | `FIRSTNAME25` (25%) |
-| T7 | Day 55 | Final gentle reach-out. Last attempt. | `FIRSTNAME30` (30% + free ship) |
+| T7 | Day 55 | Final gentle reach-out. Respect choice after. | `FIRSTNAME30` (30%) |
 
+- Human-first: Days 1-25 = ZERO discounts, build relationship. Reviews ONLY after positive feedback.
 - Discount guardrails: all single-use, 7-day expiry, max 30%, max 2 offers per sequence
+- Shipping is always free — never use as a perk
 - Care heartbeat detects new orders + due tasks automatically (no Chief delegation needed)
 - $0 orders / "Samples" discount = creator samples (skipped)
 - Reorder detected at any point = cancel remaining tasks, move to Activated/Won Back
