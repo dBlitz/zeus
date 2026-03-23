@@ -624,9 +624,41 @@ OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gi
 
 **What Chief does NOT own (runs independently):**
 - Gateway auto-restart: systemd `Restart=always` (already configured)
+- DigitalOcean automated snapshots (see Backup below)
 - OpenClaw version updates: manual `sudo npm i -g openclaw@latest`
 - Credential rotation: manual
 - Firewall/network changes: never through agent
+
+### Backup & Disaster Recovery
+
+**3-2-1 rule — fully covered:**
+
+| Layer | What | Frequency | Retention | Status |
+|-------|------|-----------|-----------|--------|
+| **OpenClaw backup** (agent-level) | `openclaw backup create` via Chief daily cron | Daily 10pm CT | Rolling (manual cleanup) | Active |
+| **DigitalOcean snapshot** (full server) | Automated full droplet image | Daily 12-4am UTC | 7 days | Active |
+| **Backup verification** | `openclaw backup verify <archive>` | On demand | — | Available |
+
+**DigitalOcean snapshots (confirmed active):**
+- Droplet ID: `540729165`, region: `nyc3`
+- Daily automated backups, 7-day retention
+- Full server image (~48 GiB) — includes OS, OpenClaw, credentials, agents, everything
+- Restore = one click in DO dashboard → new droplet from snapshot
+
+**If the server dies (full disaster recovery):**
+1. DigitalOcean dashboard → Backups → Restore from latest snapshot (one click)
+2. `systemctl --user start openclaw-gateway`
+3. Verify: `openclaw doctor && openclaw channels status --probe`
+
+**If only OpenClaw state gets corrupted:**
+1. `tar -xzf /root/LATEST-backup.tar.gz -C /`
+2. `systemctl --user restart openclaw-gateway`
+3. `openclaw doctor`
+
+**If WhatsApp session dies after restore:**
+1. `openclaw channels login --channel whatsapp` (re-scan QR from the dedicated phone)
+
+**Security:** Backup archives contain secrets in cleartext (API keys, OAuth tokens, WhatsApp session keys). DO snapshots are encrypted at rest by DigitalOcean.
 
 ### Related
 
