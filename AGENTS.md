@@ -230,6 +230,17 @@ journalctl --user -u openclaw-gateway -f
 tail -f /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log
 ```
 
+**Session monitoring (debug agents/sub-agents):**
+```bash
+openclaw sessions --active 30 --all-agents    # all active sessions, last 30 min
+openclaw sessions --active 60 --agent customer # specific agent sessions
+openclaw sessions --all-agents                 # all sessions ever
+```
+
+Output shows: agent, kind, session key, age, model, tokens (context %), flags (aborted/system).
+
+**Sub-agent known limitation:** Sub-agents do NOT support context compaction. If a sub-agent hits the context limit, it aborts instead of compacting. For large batch tasks (like customer backfill), run directly on the agent main session, not as a sub-agent spawn. Batch in groups of 10-15 to keep context manageable.
+
 ### Agents
 
 | Agent                 | Model                       | Role                                                                           |
