@@ -411,6 +411,223 @@ cd /usr/lib/node_modules/openclaw/extensions/memory-lancedb && npm install
 | macOS Companion App      | Blocked — needs full Xcode to build from source                            |
 | iPhone Node              | Blocked — TestFlight alpha or third-party apps only                        |
 
+### Agent Architecture Plan (Nawkout / dBlitz)
+
+**Design principle:** Organize agents by FUNCTION, not by platform. One agent managing "all Meta stuff" is wrong. One agent managing "all paid media" across Meta + Google + TikTok is right.
+
+**Tool count rule:** Research shows 5-7 tools is the optimal max per agent. Beyond that, LLM tool selection accuracy degrades exponentially — the model spreads attention thin, picks wrong tools, hallucinates parameters. Keep each agent under 7 tools.
+
+**Agent team (5 agents — Chief of Staff + 4 specialists):**
+
+| Agent | Function | Tools | Model | Channel routing |
+|-------|----------|-------|-------|----------------|
+| **Chief** (default) | Personal Chief of Staff — routing, morning briefing, revenue pulse, gap detection, cross-agent coordination | gog (Gmail), hubspot, shopify-admin, sessions_spawn, sessions_send | openai/gpt-5-mini | WhatsApp DMs (default), Control UI |
+| **Maya** (creator) | Creator partnerships — outreach, relationship mgmt, CRM, resupply | gog (Gmail), hubspot, shopify-admin, meta-cli (creator ad perf only) | anthropic/claude-sonnet-4-6 | Gmail inbound, delegated from Chief |
+| **Care** (customer) | Customer lifecycle, support, reviews, retention, diagnostic leads | gog (Gmail), shopify-admin, hubspot | openai/gpt-5-mini | Email channels, delegated from Chief |
+| **Ads** (paid media) | Paid media across ALL platforms — budgets, campaigns, creatives, performance | google-cli ads, meta-cli ads, tiktok-cli business, meta-cli capi | openai/gpt-5-mini | Delegated from Chief |
+| **Growth** (organic) | Analytics, SEO, organic social, content, shop operations | google-cli ga4, google-cli gsc, meta-cli instagram, meta-cli pages, tiktok-cli shop | openai/gpt-5-mini | Delegated from Chief |
+
+**Why a Chief of Staff agent:**
+- Without it, nobody watches the big picture (revenue, cross-agent gaps, fallen-through-the-cracks)
+- Morning briefing: overnight activity summary across all agents, revenue pulse, priority recommendations
+- Smart routing: "check on Rachel" → delegates to Maya; "pause Meta ads" → delegates to Ads
+- Gap detection: "3 creators haven't heard from us in 7+ days" (cross-references HubSpot with Maya's activity)
+- Direct answers for simple queries: "what's our MRR?" → Shopify query, no delegation needed
+- Cost: ~$3-5/month on GPT-5-mini (cheap — it's routing/synthesis, not creative writing)
+- Research confirms: single agents fail 35% of complex tasks, multi-agent teams hit 92% success through specialization
+
+**Chief of Staff workspace files:**
+
+| File | Content |
+|------|---------|
+| `SOUL.md` | Personality: warm but sharp, direct, no fluff. Core values: Anticipation ("best help is help you didn't ask for"), Ownership ("solutions not excuses"), Revenue-focus ("your #1 job is making sure Devin is successful and the business makes money"). Anti-patterns: no excessive affirmations, no theatre, no padding. |
+| `IDENTITY.md` | Name: Chief. Role: Chief of Staff for Devin at Nawkout/dBlitz. |
+| `AGENTS.md` | Routing rules: which specialist handles what. When to delegate vs answer directly. Cross-agent coordination protocols. |
+| `USER.md` | Devin's preferences, communication style, business context, timezone (CT). |
+| `HEARTBEAT.md` | Periodic checks: fallen-through-the-cracks creators, stale HubSpot tasks, unread Gmail. Keep tiny (<2000 chars). |
+| `TOOLS.md` | CLI reference for gog, hubspot, shopify-admin (direct access for simple queries). |
+
+**Morning briefing (cron, not heartbeat — exact timing):**
+```bash
+openclaw cron add \
+  --name "Morning briefing" \
+  --cron "0 13 * * *" \
+  --tz "UTC" \
+  --agent chief \
+  --session isolated \
+  --message "Run morning briefing: 1) Check overnight Gmail activity across all mailboxes 2) Shopify revenue last 24h 3) HubSpot pipeline: any creators with 7+ days no activity 4) Any pending tasks across agents 5) Send concise summary to WhatsApp."
+```
+
+**Cross-agent communication (requires config):**
+- `sessions_spawn` — async delegation (non-blocking, result announced back). Requires `allowAgents` config.
+- `sessions_send` — sync message to another agent (waits for response). Requires `agentToAgent` config (disabled by default).
+- Chief needs both enabled; specialists only need to accept incoming.
+
+**Heartbeat best practices (official):**
+- Keep HEARTBEAT.md tiny (short checklist) to avoid token burn
+- Use `isolatedSession: true` and `lightContext: true` for cost optimization
+- Agent replies `HEARTBEAT_OK` if nothing needs attention (dropped silently)
+- Empty HEARTBEAT.md = skip run entirely
+- Known bug (#14986): per-agent heartbeat intervals ignored in multi-agent; use cron for per-agent timing instead
+
+**Why 4 specialist agents (not 3):**
+- Putting all new CLIs (google-cli + meta-cli + tiktok-cli) on one "Ops" agent = ~25 tool actions. Way over the 5-7 optimal threshold.
+- Splitting into Ads (paid) + Growth (organic) keeps each at 5-6 tools.
+
+**Why not per-platform agents (Meta agent, Google agent, TikTok agent):**
+- One ad campaign optimization decision often spans multiple platforms ("shift budget from Google to Meta").
+- The Ads agent needs cross-platform visibility to make these calls.
+- Per-platform agents can't see the full picture.
+
+**Tool isolation (security):**
+- Maya: CRM read/write, email send, Shopify orders — NO ad budget controls
+- Care: customer data, support — NO creator outreach, NO ad controls
+- Ads: campaign CRUD, spend controls — NO email send, NO CRM write
+- Growth: analytics read-only, content publish — NO ad spend, NO email send
+
+**Model selection rationale (match model to task type, not one model for all):**
+
+Pricing context (March 2026):
+- Claude Sonnet 4.6: $3/$15 per 1M tokens (input/output)
+- GPT-5-mini: $0.25/$2 per 1M tokens — **60x cheaper on input**
+- Gemini 3 Flash: ~$0.001/msg — cheapest, fastest
+
+| Agent | Model | Why this model |
+|-------|-------|---------------|
+| **Maya** | claude-sonnet-4-6 | Only agent doing creative, relationship-driven work. Email drafting requires nuance, warmth, personality matching. Claude leads at "voice" — sounds human, avoids AI-sounding language. GPT-5-mini would sound generic for creator outreach. Worth the premium. |
+| **Care** | gpt-5-mini | Customer support is structured — lookup order, check status, draft templated response. Speed matters more than nuance (quick replies). Doesn't need Claude's creative writing ability. 60x cheaper for high-volume support. |
+| **Ads** | gpt-5-mini | Ads management is analytical — read metrics, compare numbers, decide budget allocation. No creative writing needed. Tool calling accuracy is similar across models at 5-6 tools. Cheap + fast wins for periodic checks. |
+| **Growth** | gpt-5-mini | Analytics and SEO are data-heavy report generation. Structured output (JSON metrics). Could also use Gemini 3 Flash for Google ecosystem integration (GA4, GSC). GPT-5-mini is the safe default. |
+
+**Key insight:** Only Maya needs an expensive model. The other 3 do structured, analytical tasks where a cheap fast model performs equally well. Mixed-model approach saves 50-70% vs running everything on Claude Sonnet.
+
+**Estimated monthly cost:**
+- Maya (Claude Sonnet): ~$15-30/mo
+- Care (GPT-5-mini): ~$2-5/mo
+- Ads (GPT-5-mini): ~$1-3/mo
+- Growth (GPT-5-mini): ~$1-3/mo
+- **Total: ~$20-40/mo** (vs $60-120/mo all-Claude)
+
+### CLI Tools for Agents
+
+**Existing (production):**
+
+| CLI | Repo | Binary | Status |
+|-----|------|--------|--------|
+| `gog` (Gmail/Google Workspace) | external (gogcli) | `gog` | Installed on server |
+| `shopify-admin` | `dblitz/shopify-admin-cli` | `shopify-admin` + `shopify-admin-linux-amd64` | Installed on server |
+| `hubspot` | `dblitz/hubspot-cli` | `hubspot` + `hubspot-linux-amd64` | Installed on server |
+
+**New (built 2026-03-22, same Go + keyring + JSON pattern):**
+
+| CLI | Repo | APIs bundled | API versions (2026) | macOS | Linux |
+|-----|------|-------------|-------------------|-------|-------|
+| `google-cli` | `dblitz/google-cli` | Google Ads + GA4 + GSC (one OAuth2 token, multi-scope) | Ads API v23.1, Analytics Data API v1beta, Search Console API v3/v1 | 9.2M | 9.9M |
+| `meta-cli` | `dblitz/meta-cli` | Meta Ads + Instagram + Facebook Pages + CAPI (one Graph API token) | Graph API v25.0 | 8.6M | 9.3M |
+| `tiktok-cli` | `dblitz/tiktok-cli` | TikTok Business + Shop (separate auth + HMAC-SHA256 signing) | Business API v1.3, Shop Partner API v2 | 8.6M | 9.4M |
+
+**Build status:** All 3 DONE (macOS arm64 + Linux amd64 binaries). Not yet deployed to production server.
+
+**Deploy to production (when ready):**
+```bash
+scp -P 2222 /Users/devin/dblitz/google-cli/google-cli-linux-amd64 root@167.71.93.186:/usr/local/bin/google-cli
+scp -P 2222 /Users/devin/dblitz/meta-cli/meta-cli-linux-amd64 root@167.71.93.186:/usr/local/bin/meta-cli
+scp -P 2222 /Users/devin/dblitz/tiktok-cli/tiktok-cli-linux-amd64 root@167.71.93.186:/usr/local/bin/tiktok-cli
+```
+
+**CLI pattern (all follow hubspot-cli/shopify-admin-cli):**
+- Go binary, single compiled binary per platform (macOS arm64 + Linux amd64)
+- Keyring auth via `github.com/99designs/keyring` (macOS Keychain, Linux Secret Service)
+- All output is JSON to stdout, errors to stderr
+- Called by OpenClaw agents via `exec` tool
+- Env var overrides for headless servers (e.g. `GOOGLE_CLI_KEYRING_PASSWORD`)
+
+**Auth setup per CLI (on production server):**
+```bash
+# Google (OAuth2 — requires browser for consent flow)
+google-cli auth add --client-id $GOOGLE_CLIENT_ID --client-secret $GOOGLE_CLIENT_SECRET --developer-token $GOOGLE_ADS_DEVELOPER_TOKEN --customer-id 9934956972 --remote
+
+# Meta (long-lived token — generated in Meta developer portal)
+meta-cli auth add --token $META_ACCESS_TOKEN --app-id $META_APP_ID --app-secret $META_APP_SECRET
+
+# TikTok Business (OAuth2 token)
+tiktok-cli auth add-business --token $TIKTOK_ACCESS_TOKEN
+
+# TikTok Shop (app key + secret + token)
+tiktok-cli auth add-shop --app-key $TTS_APP_KEY --app-secret $TTS_APP_SECRET --token $TTS_ACCESS_TOKEN
+```
+
+### Voice Call (Phone)
+
+OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gives your agent a real phone number via Twilio, Telnyx, or Plivo. You call the number and talk to the agent with voice.
+
+**Note:** You CANNOT call the WhatsApp number to talk to the agent — WhatsApp Web/Baileys only handles text, not voice calls. Voice calls require a separate phone number via the voice-call plugin.
+
+**Features:**
+- Real phone number you can call
+- Agent can use tools mid-call (Shopify, Gmail, HubSpot, etc.)
+- TTS for agent speech (uses ElevenLabs config)
+- STT for your voice input (Whisper)
+
+**Current setup (as of 2026-03-22):**
+- **Provider:** Telnyx (freemium account, info@nawkout.com)
+- **Phone number:** +1-832-787-1364 (Houston, active)
+- **Voice app:** "OpenClaw Maya Voice" (Connection ID: `2921090214740887401`)
+- **Plugin:** voice-call loaded, webhook at `https://crm.taile47c3.ts.net/voice/webhook`
+- **Config:** `skipSignatureVerification: true` (need to add `telnyx.publicKey` for production)
+- **Inbound policy:** allowlist (`+18324832725`)
+- **Status:** BLOCKED — Telnyx account balance is -$0.01. Need to add funds ($5 minimum) to enable call processing. Freemium portal has no billing page; need to log in as Business account (check email for password setup link after GitHub identity verification).
+- **API key:** stored in `~/.openclaw/.env` (`TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`)
+
+**To unblock voice calls:**
+1. Check email from Telnyx for password setup link
+2. Log in at portal.telnyx.com as Business (not Freemium)
+3. Add payment method and fund account with $5+
+4. Calls should work immediately after balance is positive
+
+**Third-party alternative:** ClawdTalk (by Telnyx) — gives agent a phone number with voice + WhatsApp + SMS on one number.
+
+### Chief of Staff — Monitoring & Security Architecture
+
+**Principle:** Chief MONITORS and ALERTS. Infrastructure-level controls run independently.
+
+**Heartbeat (every 30m, lightContext: true):**
+
+```markdown
+# HEARTBEAT — 10 checks, trigger-based
+
+## Business
+1. Gmail: unread from VIPs/creators older than 2h -> alert
+2. HubSpot: active pipeline contact with 7+ days no activity -> alert
+3. Shopify: orders with issues/refunds/chargebacks in last 4h -> alert
+4. Cron: failed or overdue openclaw cron jobs -> alert
+
+## Agent Oversight
+5. Maya: Gmail drafts pending review for 24h+ -> alert
+6. Maya: creator conversation unanswered 48h+ -> alert
+7. Care: customer support email unanswered 4h+ -> alert
+
+## Infrastructure
+8. WhatsApp: openclaw channels status --probe -> alert if NOT connected
+9. Disk: df -h -> alert if partition below 20% free
+10. Backup: newest /root/*backup*.tar.gz older than 26h -> alert
+```
+
+**Scheduled cron jobs (all targeting Chief):**
+
+| Job | Cron | Time (CT) | Purpose |
+|-----|------|-----------|---------|
+| Daily backup | `0 4 * * *` | 10pm CT | `openclaw backup create` |
+| Morning briefing | `0 13 * * *` | 7am CT | Revenue, overnight activity, priorities |
+| Weekly security audit | `0 14 * * 1` | Mon 8am CT | `openclaw security audit --deep` |
+| Weekly agent review | `0 22 * * 5` | Fri 4pm CT | Grade agents A/B/C, flag gaps |
+
+**What Chief does NOT own (runs independently):**
+- Gateway auto-restart: systemd `Restart=always` (already configured)
+- OpenClaw version updates: manual `sudo npm i -g openclaw@latest`
+- Credential rotation: manual
+- Firewall/network changes: never through agent
+
 ### Related
 
 - Full marketing-sales operational docs: `../marketing-sales/CLAUDE.md`
@@ -421,3 +638,5 @@ cd /usr/lib/node_modules/openclaw/extensions/memory-lancedb && npm install
 - Talk Mode docs: `docs/nodes/talk.md`
 - iOS app docs: `docs/platforms/ios.md` (see also `apps/ios/README.md`)
 - macOS app docs: `docs/platforms/macos.md` (see also `apps/macos/README.md`)
+- Tool selection research: 5-7 tools optimal per agent (see ICLR 2026 AutoTool paper)
+- OpenClaw multi-agent docs: `docs/concepts/multi-agent.md`
