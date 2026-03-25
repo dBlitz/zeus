@@ -860,6 +860,72 @@ bizops-monitor trace --client nawkout --agent creator   # Deep dive reasoning + 
 
 **Gmail OAuth purpose routing:** `?purpose=partnerships` maps to `agentId=outreach`, `?purpose=support` maps to `agentId=support`, `?purpose=operations` maps to `agentId=chief`. Customer never sees "agent" -- only business function labels.
 
+### Agent Workspace Files (OpenClaw 2026 Standard)
+
+| File | Purpose | Auto-loaded? |
+|------|---------|-------------|
+| `SOUL.md` | Personality, voice, tone, values ("Who are you?") | Yes, every turn |
+| `AGENTS.md` | Operating rules, workflows, pipelines ("What do you do?") | Yes, every turn (keep under 20K chars) |
+| `USER.md` | Operator profile, business context, ICP, geography ("Who do you serve?") | Yes, every turn |
+| `TOOLS.md` | CLI commands, API references, stage IDs | Yes, every turn |
+| `IDENTITY.md` | Agent name, role, email, signature | Yes, every turn |
+| `HEARTBEAT.md` | Periodic task checklist (cadence, checks) | Yes, on heartbeat turns only |
+| `BOOTSTRAP.md` | First-run onboarding ritual (one-time, deletes itself) | Yes, first run only |
+| `MEMORY.md` | Persistent learnings across sessions | Yes, main session only |
+| `memory/` | Daily session logs (YYYY-MM-DD.md) | Read on-demand |
+| `skills/` | On-demand reference docs (NOT in system prompt) | Loaded when agent invokes skill |
+| `docs/` | Product/policy reference (NOT auto-loaded) | Read on-demand |
+
+**Key principle:** Every line in a bootstrap file (SOUL/AGENTS/TOOLS/USER/IDENTITY/HEARTBEAT) is a permanent token tax on every interaction. Keep lean. Move verbose reference to `skills/` (loaded on demand).
+
+**Separation of concerns:**
+- "Always do X when Y happens" → AGENTS.md
+- "`command --flag value`" → TOOLS.md
+- "You are warm, casual, never formal" → SOUL.md
+- "We target DTC brands in CA/TX, $500K-5M revenue" → USER.md
+- "Check Gmail every heartbeat" → HEARTBEAT.md
+
+### BOOTSTRAP.md (First-Run Onboarding)
+
+Every agent should have a BOOTSTRAP.md that runs on first activation. The bootstrap is a one-time conversational ritual:
+
+1. Agent reads BOOTSTRAP.md on first wake
+2. Starts natural conversation (not a survey)
+3. Asks role-specific questions **one at a time**
+4. Fills in IDENTITY.md, USER.md, SOUL.md from answers
+5. Verifies existing config if files already have content
+6. Deletes BOOTSTRAP.md when done -- never runs again
+
+**For pre-configured agents (template already filled):** Bootstrap should VERIFY rather than ask from scratch: "I see my USER.md says we target DTC health brands in CA/TX. Is that correct? Anything to change before I start?"
+
+**For blank agents (new customer):** Bootstrap asks discovery questions: "What does the business sell? What verticals? What email addresses? What tone?"
+
+**Role-specific bootstrap questions:**
+- **Creator/Outreach:** Product, verticals, geography, outreach email, value prop, creator criteria
+- **Support/Customer:** Product, policies, support email, tone, lifecycle touchpoints
+- **Chief:** Operator name, channels, business overview, agent team structure
+
+### dBlitz Agent Architecture
+
+dBlitz is a managed AI agency (NOT a product brand). Agents are configured differently:
+
+| Agent ID | Role | Model | Heartbeat |
+|----------|------|-------|-----------|
+| `chief` (default) | Chief of Staff for Devin | openai-5.4/gpt-5.4-mini | Yes (30m) |
+| `outreach` | B2B sales prospecting (find DTC brand clients) | openai-5.4/gpt-5.4-mini | No (activate when ready) |
+| `support` | Client success (monitor client health, prevent churn) | openai-5.4/gpt-5.4-mini | No (activate when ready) |
+| `bookkeeper` | Bookkeeping (QBO) | openai-5.4/gpt-5.4-mini | No |
+
+**dBlitz ICP:** US DTC health/wellness supplement brand, $500K-5M Shopify, 1-5 employees, using QBO. Target verticals: Health & Wellness (#1), Pet Products (#2), Beauty & Personal Care (#3).
+
+**Geographic phasing:** Phase 1: CA + TX (highest DTC wellness concentration). Phase 2: FL (supplement capital). Phase 3: NYC. Phase 4: Nationwide.
+
+**Prospecting stack:** StoreCensus CLI (`--vertical --revenue-min --state`), influencers.club (reverse brand lookup), DTC communities.
+
+**Outreach rule:** Never say AI first. Say "managed service" or "my team." AI is a feature, not the sell.
+
+**Template agents (for new customers):** Genericized from Nawkout's battle-tested files with `{{BRAND}}`, `{{PRODUCT_DESCRIPTION}}`, `{{OUTREACH_EMAIL}}` placeholders. BOOTSTRAP.md fills them in on first activation. Template at `/opt/openclaw-platform/templates/agents/`.
+
 ### Related
 
 - Full marketing-sales operational docs: `../marketing-sales/CLAUDE.md`
