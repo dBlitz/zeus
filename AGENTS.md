@@ -916,9 +916,22 @@ dBlitz is a managed AI agency (NOT a product brand). Agents are configured diffe
 | `support` | Client success (monitor client health, prevent churn) | openai-5.4/gpt-5.4-mini | No (activate when ready) |
 | `bookkeeper` | Bookkeeping (QBO) | openai-5.4/gpt-5.4-mini | No |
 
-**dBlitz ICP:** US DTC health/wellness supplement brand, $500K-5M Shopify, 1-5 employees, using QBO. Target verticals: Health & Wellness (#1), Pet Products (#2), Beauty & Personal Care (#3).
+**dBlitz ICP (tightest):** US DTC health/wellness supplement brand, **$1M-3M annual revenue** on Shopify, 1-5 employees (solo founder sweet spot), ideally using QBO. $1M-3M is the sweet spot: big enough to have real pain (drowning in orders, can't manage creators), small enough they can't hire full-time ($60K salary vs $1,999/mo service).
 
-**Geographic phasing:** Phase 1: CA + TX (highest DTC wellness concentration). Phase 2: FL (supplement capital). Phase 3: NYC. Phase 4: Nationwide.
+**Target supplement niches (ranked by fit):**
+1. Sleep & Stress (gummy format, 30-day supply, perfect subscription)
+2. Gut Health / Probiotics (daily use, results compound, highest retention)
+3. Adaptogens / Mushroom (trending, high AOV, wellness-obsessed buyers)
+4. Collagen / Beauty (daily ritual, visible results, strong female demo)
+5. Prenatal / Women's Health (captive audience, high trust)
+6. Plant Protein (high volume, gym community loyalty)
+
+**Geographic phasing:** Phase 1: **CA + TX + FL** (CA = DTC wellness capital, TX = fast-growing hub, FL = supplement manufacturing hub with GMP-certified private label manufacturers). Phase 2: NYC/Northeast. Phase 3: Nationwide.
+
+**StoreCensus tightest search:**
+```
+storecensus search --vertical "Health & Wellness" --country US --state CA,TX,FL --revenue-min 1000000 --revenue-max 3000000 --has-email true --employees-max 10 --limit 50
+```
 
 **Prospecting stack:** StoreCensus CLI (`--vertical --revenue-min --state`), influencers.club (reverse brand lookup), DTC communities.
 
