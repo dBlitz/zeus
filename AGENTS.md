@@ -207,27 +207,35 @@
 
 ## Production Server (Nawkout / dBlitz)
 
-**Droplet:** `167.71.93.186` SSH port `2222`, path `/root/projects/zeus` (dBlitz/zeus fork).
+**Nawkout runs as Docker container on biz-ops (`165.22.5.136`).** Container: `openclaw-nawkout`, image: `ghcr.io/dblitz/openclaw-bizops:latest`. Old bare metal (`167.71.93.186`) is STOPPED -- do not use.
 
 ### Access
 
 ```bash
-ssh -p 2222 root@167.71.93.186
+ssh root@165.22.5.136
+# All commands run via docker exec:
+docker exec openclaw-nawkout openclaw agent --agent creator -m 'your message here'
+docker exec openclaw-nawkout openclaw agent --agent creator --local -m 'your message here'  # 600s timeout
+docker exec openclaw-nawkout openclaw agents list
+docker exec openclaw-nawkout openclaw gateway status
+docker exec openclaw-nawkout openclaw sessions --agent creator
+docker exec openclaw-nawkout openclaw sessions --agent creator --active 30
+docker exec openclaw-nawkout openclaw system event --text "heartbeat" --mode now  # Force trigger heartbeat
+docker exec openclaw-nawkout openclaw system heartbeat last                       # Last heartbeat result
+docker exec openclaw-nawkout openclaw cron list                                   # All scheduled jobs
 ```
 
 ### OpenClaw Gateway
 
-- **Systemd service:** `openclaw-gateway` on port `18789` (loopback)
-- **Version:** v2026.3.14
+- **Container:** `openclaw-nawkout` on biz-ops (`165.22.5.136`)
 - **Tailscale node:** `crm` (IP `100.124.75.80`, MagicDNS `crm.taile47c3.ts.net`)
 - **Control UI:** `https://crm.taile47c3.ts.net/dashboard/` (Funnel, token auth, device auth disabled)
-- **Gateway auth token:** stored in `gateway.auth.token` in `/root/.openclaw/openclaw.json`
+- **Gateway auth token:** stored in `gateway.auth.token` in config
 
 ```bash
-systemctl --user status openclaw-gateway
-systemctl --user restart openclaw-gateway
-journalctl --user -u openclaw-gateway -f
-tail -f /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log
+docker exec openclaw-nawkout openclaw gateway status
+docker logs openclaw-nawkout --tail 50 -f
+docker restart openclaw-nawkout
 ```
 
 **Session monitoring (debug agents/sub-agents):**
