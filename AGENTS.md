@@ -828,6 +828,38 @@ bizops-monitor trace --client nawkout --agent creator   # Deep dive reasoning + 
 
 **Grafana Cloud OTel:** Traces + metrics via diagnostics-otel plugin. Dashboard at `https://dblitz.grafana.net`.
 
+### OAuth Integration Dashboard
+
+**URL:** `https://auth.bizops.dblitz.com/?customer=CUSTOMER_NAME`
+**Auth server:** Go binary at `/opt/openclaw-platform/scripts/bizops-auth-server`, systemd service `bizops-auth` on port 8090.
+
+**Integrations (all one-click, auto-inject into container):**
+
+| Integration | Status | Auto-setup on connect |
+|-------------|--------|----------------------|
+| QuickBooks | Ready | Token saved to .env |
+| Gmail (Partnerships/Support/Operations) | Ready | gog auth import + webhook setup + agent routing (by `?purpose=` param) |
+| HubSpot | Ready | OAuth v3, auto-refresh tokens, hubspot CLI oauth-store + CRM auto-provision |
+| Shopify | Needs public app | Custom app creds work for Nawkout only, not multi-tenant |
+| Instagram/Meta | Ready | Long-lived token exchange |
+
+**HubSpot public app "dBlitz BizOps":**
+- App ID: `34832345`, Developer portal: `245658668`
+- Credentials stored in `/etc/systemd/system/bizops-auth.service` on biz-ops server (env vars `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`)
+- Redirect URI: `https://auth.bizops.dblitz.com/hubspot/callback`
+- Scopes: `crm.objects.contacts.read/write`, `crm.objects.deals.read/write`, `crm.objects.companies.read/write`, `oauth`
+- Tokens: access expires 30 min, refresh is long-lived, hubspot CLI auto-refreshes on every API call
+
+**Shopify OAuth status (as of 2026-03-25):**
+- Current creds are Nawkout's custom app -- locked to one store, won't work for other customers. Stored in bizops-auth.service env vars.
+- Need: **unlisted public app** via Shopify Partner Dashboard for multi-tenant OAuth
+- Unlisted = not in App Store but installable via direct link (perfect for BizOps)
+- Review process: 5-10 business days initial, 2-4 weeks total if changes requested
+- Requirements: app listing (name, description, screenshots), privacy policy URL, pass automated checks
+- Workaround until approved: create per-customer custom apps from Partner Dashboard (OAuth flow, 24h token expiry)
+
+**Gmail OAuth purpose routing:** `?purpose=partnerships` maps to `agentId=outreach`, `?purpose=support` maps to `agentId=support`, `?purpose=operations` maps to `agentId=chief`. Customer never sees "agent" -- only business function labels.
+
 ### Related
 
 - Full marketing-sales operational docs: `../marketing-sales/CLAUDE.md`
