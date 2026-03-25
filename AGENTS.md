@@ -935,6 +935,25 @@ storecensus search --vertical "Health & Wellness" --country US --revenue-min 100
 
 **Outreach approach (2026 SOTA):** 50-100 accounts at a time, multi-touch 60-day cadence. Quality over volume. Targeting precision kills broad geographic phasing.
 
+**Sales strategy: Land and Expand (2026 SOTA).** Do NOT sell the full bundle upfront. Sell ONE thing first, prove value, expand later.
+
+**The wedge = Creator/UGC management ($999/mo).** Most visible results, least risky (not touching books or support), easiest to prove ("20 creators in 30 days"). Expansion path: creator mgmt → customer lifecycle → bookkeeping → ads.
+
+**Current focus:** UGC / creator / affiliate management ONLY. NOT ads, NOT bookkeeping, NOT customer support yet. Those are upsells after proving creator value.
+
+**Lead qualification stack (check BEFORE reaching out):**
+1. **Tech stack** — more Shopify apps = more budget = more pain managing them. Look for ReCharge (subscriptions), Klaviyo (email), Yotpo (reviews).
+2. **Creator/UGC program** — use `influencers discover --has-brand-deals true` to reverse-lookup brands already doing creator partnerships. Warmest intro angle.
+3. **Social presence** — check Instagram/TikTok via `meta-cli ig discover`. Active social = DTC brand that cares about growth. Dead social = skip.
+4. **Store age** — 2+ years old (survived startup phase, real revenue). Use `--created-before 2024-01-01`.
+5. **App install/uninstall signals** — brand that JUST dropped their bookkeeping/support app = hottest lead. Use `--app-uninstalled-after`.
+6. **Employee count** — 1-5 sweet spot. Solo founders drowning in ops.
+7. **Website manual check** — products, subscription option, brand quality, vibe.
+
+**Qualification pipeline:** StoreCensus (firmographics) → influencers.club (creator program check) → meta-cli ig discover (social presence) → manual website check (products, subscription, vibe)
+
+**Disqualification signals:** No social media, no subscription, hardware/devices (not consumable), 10+ employees (hiring in-house), sleep supplements (conflicts with Nawkout).
+
 **Prospecting stack:** StoreCensus CLI (`--vertical --revenue-min --state`), influencers.club (reverse brand lookup), DTC communities.
 
 **Outreach rule:** Never say AI first. Say "managed service" or "my team." AI is a feature, not the sell.
