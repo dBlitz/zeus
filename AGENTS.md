@@ -794,6 +794,32 @@ OpenClaw has an official `voice-call` plugin at `extensions/voice-call/` that gi
 
 **Security:** Backup archives contain secrets in cleartext (API keys, OAuth tokens, WhatsApp session keys). DO snapshots are encrypted at rest by DigitalOcean.
 
+### BizOps Platform (Managed AI Agency)
+
+**Droplet:** `165.22.5.136` port `22`, path `/opt/openclaw-platform/`
+**GitHub:** `dBlitz/bizops-platform` (private), `dBlitz/bizops-auth-server`, `dBlitz/openclaw-bizops`
+
+**Architecture:** Control Plane (host: Managing Partner agent + Auth Server + Caddy) + Data Plane (Docker: per-customer OpenClaw container + Tailscale sidecar). Nawkout production (167.71.93.186) pending migration to Docker.
+
+**Provisioning new clients:** `/opt/openclaw-platform/scripts/provision.sh CUSTOMER_NAME` (one-command setup). Creates Tailscale sidecar + OpenClaw container (4 agents) + Caddy route + .env with platform keys. OAuth dashboard at `https://auth.bizops.dblitz.com/?customer=CUSTOMER_NAME`.
+
+**Custom Docker image:** `ghcr.io/dblitz/openclaw-bizops` extends official image with 8 Go CLIs (gog, hubspot, shopify-admin, influencers, meta-cli, qbo, tiktok-cli, storecensus), Gemini CLI, Apify plugin, multi-account Gmail entrypoint.
+
+**Multi-account Gmail in Docker:** `GMAIL_EXTRA_ACCOUNTS=partner@nawkout.com:8789:gmail-partner,care@nawkout.com:8790:gmail-care` (account:port:hook_path, comma-separated).
+
+**bizops-monitor CLI** (observability across all clients):
+```bash
+bizops-monitor all                                     # Full dashboard
+bizops-monitor cost --client nawkout                    # Per-client cost
+bizops-monitor sessions                                # Session types
+bizops-monitor top --limit 10                           # Costliest sessions
+bizops-monitor health                                  # All containers + remotes
+bizops-monitor alert --threshold 10                    # Spend alerts
+bizops-monitor trace --client nawkout --agent creator   # Deep dive reasoning + tool calls
+```
+
+**Grafana Cloud OTel:** Traces + metrics via diagnostics-otel plugin. Dashboard at `https://dblitz.grafana.net`.
+
 ### Related
 
 - Full marketing-sales operational docs: `../marketing-sales/CLAUDE.md`
