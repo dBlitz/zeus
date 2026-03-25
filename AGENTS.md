@@ -364,6 +364,32 @@ systemctl --user restart openclaw-gateway
 cd /usr/lib/node_modules/openclaw/extensions/memory-lancedb && npm install
 ```
 
+### Heartbeat Operations (Critical Lessons — 2026-03-24)
+
+**Heartbeat timer bug (Issue #31139, OPEN):** The internal heartbeat timer fires once then never re-arms. Workaround: system crontab watchdog `*/30 * * * * /usr/local/bin/openclaw system event --text watchdog-heartbeat --mode now`. This fires every 30 min reliably.
+
+**Send Safety (added to all agent HEARTBEAT.md files):** Heartbeat NEVER sends live emails. It creates drafts and schedules cron sends during business hours only. This prevents late-night sends to creators/customers. The heartbeat drafts + schedules, cron jobs send.
+
+**`isolatedSession` is NOT a valid config key** on our gateway version (v2026.3.14 fork). Using it breaks the entire config and prevents gateway startup. Never set it. Use `lightContext: true` instead for token savings.
+
+**Per-agent heartbeat model override does NOT work** (bug #30894). Set the model in `agents.defaults.heartbeat.model` instead. Currently set to `anthropic/claude-sonnet-4-6` because gpt-5-mini is too weak to execute complex heartbeat checklists (it sent garbage emails to Samantha and Caitlin instead of following the Creator Partner flow).
+
+**Gmail hook must NOT set a model override.** If `model` is set on `hooks.mappings[0]`, ALL inbound emails get a dumb summarizer instead of the creator agent with full reasoning + tools. Fix: `openclaw config unset hooks.mappings.0.model`.
+
+**Partner@ Gmail push (added 2026-03-24):** `gog-partner-watcher` systemd service watches `partner@nawkout.com` on port 8789. Hooks into same gateway endpoint as maya@. Both Pub/Sub subscriptions share the same topic. Service auto-restarts.
+
+**Workspace file separation (from marketing-sales/CLAUDE.md):**
+- SOUL.md = personality, voice, tone (who you are)
+- AGENTS.md = operational rules, workflows (what to do). Keep under 20K chars (truncated at inject).
+- TOOLS.md = CLI command syntax, flags, stage IDs (what's plugged in)
+- HEARTBEAT.md = proactive checklist (what to check)
+- skills/ = on-demand reference (NOT in system prompt, loaded when needed)
+- Every line in bootstrap files is a permanent token tax. Keep lean.
+
+**Cost optimization:** Heartbeat with `lightContext: true` = ~2-5K tokens per run vs ~200K without. `agents.defaults.heartbeat.model` set to Sonnet (was gpt-5-mini but too weak for complex flows). Monitor costs at `console.anthropic.com` — `openclaw gateway usage-cost` massively underreports.
+
+**Creator pipeline 50K+ threshold (added 2026-03-24):** Only work with creators who have 50K+ followers. Discovery filter changed from 5K to 50K. Sub-50K outreach deals archived (~2500 moved to Archived). Heartbeat email checks skip threads from sub-50K creators.
+
 ### Control UI
 
 - **URL:** `https://crm.taile47c3.ts.net/dashboard/`
