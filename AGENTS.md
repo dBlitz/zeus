@@ -926,12 +926,14 @@ dBlitz is a managed AI agency (NOT a product brand). Agents are configured diffe
 5. Prenatal / Women's Health (captive audience, high trust)
 6. Plant Protein (high volume, gym community loyalty)
 
-**Geographic phasing:** Phase 1: **CA + TX + FL** (CA = DTC wellness capital, TX = fast-growing hub, FL = supplement manufacturing hub with GMP-certified private label manufacturers). Phase 2: NYC/Northeast. Phase 3: Nationwide.
+**Geography:** No geographic phasing. 2026 SOTA says ICP precision beats geographic narrowing. Search all US, let account quality filter naturally. DTC hubs (CA, TX, FL, NYC) will surface organically.
 
 **StoreCensus tightest search:**
 ```
-storecensus search --vertical "Health & Wellness" --country US --state CA,TX,FL --revenue-min 1000000 --revenue-max 3000000 --has-email true --employees-max 10 --limit 50
+storecensus search --vertical "Health & Wellness" --country US --revenue-min 1000000 --revenue-max 3000000 --has-email true --employees-max 10 --limit 50
 ```
+
+**Outreach approach (2026 SOTA):** 50-100 accounts at a time, multi-touch 60-day cadence. Quality over volume. Targeting precision kills broad geographic phasing.
 
 **Prospecting stack:** StoreCensus CLI (`--vertical --revenue-min --state`), influencers.club (reverse brand lookup), DTC communities.
 
